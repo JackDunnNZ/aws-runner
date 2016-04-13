@@ -1,0 +1,6 @@
+instance_type,command
+t2.small,julia wrapper.jl --seed 1
+t2.small,julia wrapper.jl --seed 2
+t2.small,julia wrapper.jl --seed 3
+t2.small,julia wrapper.jl --seed 4
+t2.small,julia wrapper.jl --seed 5
