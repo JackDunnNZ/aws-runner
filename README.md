@@ -171,15 +171,33 @@ After the `dispatcher.py` script has finished executing, you can check the numbe
 
 If there is no progress, then you can debug the run by logging onto one of the EC2 nodes as described in the previous section of this document. Debug output will be available in files `~/code/screen_output.txt`. Once you are finished debugging, you can terminate all running instances from the AWS console by navigating to "EC2" and "Running Instances", selecting all the instances, right clicking, and selecting "Instance State -> Terminate".
 
+### Advanced - Updating tags during the run
+
+If you want to keep track of how far along each job is, you can call the helper script `update_tags.py` from within your script. This file should be called as follows:
+
+```
+python ~/update_tags.py key value
+```
+
+This will add (or update) the tag `key` to have value `value`. These tags can be displayed on the AWS console by adding the relevant tags as columns on the console page.
+
+For example, you might want to keep track the percentage of work completed as the job runs. Your script should run the command
+
+```
+python ~/update_tags.py percent_complete <value>
+```
+
+to update the `percent_complete` tag with the updated percentage of work complete. You will then be able to see this value in the list of running instances in the AWS console to get an idea of how far along each job is, and provide some assurance that work is still progressing.
+
 ## Internals
 
-Though we do not expect that most researchers will need to modify the internals of the AWS testing infrastructure, we provide details for completeness. As indicated in the previous sections, cloud runs are started with [Cloud/MQLibDispatcher.py](MQLibDispatcher.py). This script performs a number of steps:
+Though we do not expect that most researchers will need to modify the internals of the AWS testing infrastructure, we provide details for completeness. As indicated in the previous sections, cloud runs are started with `dispatcher.py`. This script performs a number of steps:
 
-1. Validates that the command-line options are properly specified, that the `.boto` credentials file is present, the `GUROBI_CLOUD_KEY.txt` file exists, and that the script is run from the `aws-runner` directory. 
+1. Validates that the command-line options are properly specified, that the `.boto` credentials file is present, the `GUROBI_CLOUD_KEY.txt` file exists, and that the script is run from the `aws-runner` directory.
 2. Performs setup related to Gurobi AWS. Queries the Gurobi website for the latest AMI for the given AWS region, and forms the `user_data` that is required for adding the Gurobi license key to the AWS instances on startup.
 3. Performs several startup tasks. The `cloud_setup.create_security_group` function is used to create an AWS security group (if one has not already been created) that allows SSH access to the EC2 nodes from any IP address on port 22. The `cloud_setup.create_keypair` function is used to create a key for the account's user (if one has not already been created), which is stored in `~/.ssh/<jobname>.pem`. The `cloud_setup.clean_known_hosts` function is used to remove any EC2 hosts from the `~/.ssh/known_hosts` file, which prevents SSH errors due to hostname collisions in consecutive large runs. Finally, the `cloud_setup.wait_for_shutdown` function waits for all nodes that are currently shutting down to be terminated.
 3. Creates the EC2 instances using the `create_instances` function (this step is skipped if the `nocreate` command-line argument is provided). This is a thin wrapper around the `cloud_setup.launch_instance` function, which is called in parallel using the `multiprocessing` package for efficiency purposes.
 4. Creates connections to all the instances using the `connect_instances` function. This is a thin wrapper around the `cloud_setup.connect_instance` function. The function returns an SSH client that can be used to connect to each of the instances.
-5. Sets up all the instances using the `setup_instances` function (this step is skipped if the `nocreate` command-line argument is provided). This copies `.boto`, [INSTALL.py](INSTALL.py), and [INSTALL.sh](INSTALL.sh) from your local `aws-runner` folder to the instance (along with `cloud_setup.py`, `update_tags.py` for updating tags during the run, and `save_results.py` for uploading results to SimpleDB). It also copies the specified code folder from your local computer to the instance. It then runs the `INSTALL.py` script, which runs in an infinite loop, running `INSTALL.sh` with a 6-minute timeout until the setup is complete.
+5. Sets up all the instances using the `setup_instances` function (this step is skipped if the `nocreate` command-line argument is provided). This copies `.boto`, `INSTALL.py`, and `INSTALL.sh` from your local `aws-runner` folder to the instance (along with `cloud_setup.py`, `update_tags.py` for updating tags during the run, and `save_results.py` for uploading results to SimpleDB). It also copies the specified code folder from your local computer to the instance. It then runs the `INSTALL.py` script, which runs in an infinite loop, running `INSTALL.sh` with a 6-minute timeout until the setup is complete.
 7. Starts a run on all EC2 nodes using the `dispatch_and_run` function (this step is skipped if the `nodispatch` command-line argument is provided). Communicates with each EC2 node which command it should run and creates a shell script to run this command followed by the helper script to save the results in SimpleDB. Finally, `dispatch_and_run` executes this script on each node.
 8. Terminates once work has been dispatched to all EC2 nodes.

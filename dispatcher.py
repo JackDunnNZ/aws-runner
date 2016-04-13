@@ -190,6 +190,8 @@ def dispatch_and_run(job, tags, cmds, commands, results_file, verbose=True):
         # Make a shell script to run the command and then save the results
         runner_path = "runner_%s.sh" % tag
         with open(runner_path, "w") as f:
+            f.write("export TAG=%s" % tag)  # Inject tag as environment var
+            f.write("\n")
             f.write(command)
             f.write("\n")
             f.write("python save_results.py %s %s %s" %
