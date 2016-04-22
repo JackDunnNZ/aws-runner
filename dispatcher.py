@@ -302,6 +302,10 @@ def run_dispatch(job, commands, instance_types, codepath, results_file, create,
 
     tags = ["%s%d" % (job, i) for i in range(len(commands))]
 
+    print "Overview for job %s" % job
+    for tag, inst_type, command in zip(tags, instance_types, commands):
+        print "   %s%s%s" % (tag.ljust(20), inst_type.ljust(20), command)
+
     # Get the Gurobi AMI for the selected AWS region
     resolver = gurobi_aws.AMIResolver()
     ami_name = resolver.get_ami_name(cloud_setup.AWS_REGION)
@@ -313,8 +317,14 @@ def run_dispatch(job, commands, instance_types, codepath, results_file, create,
         for (region, ami) in resolver.get_ami_list().iteritems():
             print "    %s%s" % (region.ljust(20), ami)
 
+    print "Using Gurobi AMI:"
+    print "    %s" % ami_name
+
     cloudkey = gurobi_aws.get_cloudkey()
     user_data = gurobi_aws.generate_user_data(cloudkey, job)
+
+    print "Using user_data:"
+    print user_data
 
     # Setup security group and key pair (these are no-ops if done before)
     cloud_setup.create_security_group(job)
