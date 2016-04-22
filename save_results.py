@@ -4,7 +4,7 @@ import sys
 import cloud_setup
 
 
-def get_results_from_csv(job, tag, results_file, current_time):
+def get_results_from_csv(key, job, tag, results_file, current_time):
     # Read from output file
     reader = csv.reader(open(results_file, "rU"))
     header_line = reader.next()
@@ -12,7 +12,7 @@ def get_results_from_csv(job, tag, results_file, current_time):
 
     results = {}
     for row_num, line in enumerate(reader):
-        key = "%s-%s-%f-%d" % (job, tag, current_time, row_num)
+        rowkey = "%s-%d" % (key, row_num)
         values = {
             "AWS_job": job,
             "AWS_tag": tag,
@@ -21,18 +21,24 @@ def get_results_from_csv(job, tag, results_file, current_time):
         }
         for col in xrange(num_cols):
             values[header_line[col]] = line[col]
-        results[key] = values
+        results[rowkey] = values
     return results
 
 
 def save_results(job, tag, results_file):
     try:
+        current_time = time.time()
+        key = "%s-%s-%f" % (job, tag, current_time)
+
+        # Save file to s3
+        s3, bucket = cloud_setup.setup_s3_bucket(job)
+        cloud_setup.add_file_to_s3_bucket(bucket, key, results_file)
+
         # Get ready for SimpleDB comms
         sdb, dom = cloud_setup.setup_sdb_domain(job)
 
-        current_time = time.time()
-
-        results = get_results_from_csv(job, tag, results_file, current_time)
+        results = get_results_from_csv(key, job, tag, results_file,
+                                       current_time)
 
         # Write to SDB
         dom.batch_put_attributes(results)

@@ -204,6 +204,44 @@ def get_sdb_domain_size(domain_name):
 ###############################################################################
 
 
+def setup_s3_bucket(bucket_name):
+    s3 = boto.s3.connect_to_region(AWS_REGION)
+    # Only create if it doesn't exist already
+    try:
+        bucket = s3.get_bucket(bucket_name, validate=True)
+    except:
+        # Doesn't exist yet
+        bucket = s3.create_domain(bucket_name)
+    return s3, bucket
+
+
+def delete_s3_bucket(bucket_name):
+    s3, bucket = setup_s3_bucket(bucket_name)
+    # TODO this needs to empty the bucket first
+    s3.delete_bucket(bucket_name)
+
+
+def add_file_to_s3_bucket(bucket, filekey, filename):
+    key = boto.s3.key.Key(bucket)
+    key.key = filekey
+    key.set_contents_from_filename(filename)
+
+
+def download_s3_bucket(bucket_name, output_folder):
+    s3, bucket = setup_s3_bucket(bucket_name)
+
+    if not os.path.exists(output_folder):
+        os.mkdir(output_folder)
+
+    bucket_list = bucket.list()
+    for key in bucket_list:
+      d = os.path.join(output_folder, key.key)
+      key.get_contents_to_filename(d)
+
+
+###############################################################################
+
+
 # Several cleanup tasks to make starting a cluster less annoying:
 def clean_known_hosts():
     with open(SSH_FOLDER + "known_hosts", "rU") as fp:
