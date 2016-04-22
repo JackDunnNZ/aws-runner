@@ -1,4 +1,4 @@
-# python grabFullRuns.py
+# python get_results.py
 import csv
 import sys
 import cloud_setup
@@ -26,7 +26,7 @@ if __name__ == "__main__":
         job = sys.argv[1]
         sdb, dom = cloud_setup.setup_sdb_domain(job)
         rs = dom.select('select * from `%s`' % job)
-        write_results(rs.itervalues(), sys.argv[2])
+        write_results(rs, sys.argv[2])
     elif len(sys.argv) == 2:
         print "No outfile specified: dumping to stdout"
         cloud_setup.dump_sdb_domain(sys.argv[1])
