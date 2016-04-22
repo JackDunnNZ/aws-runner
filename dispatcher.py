@@ -113,6 +113,15 @@ def setup_instances(tags, cmds, codepath, verbose=True):
     multiprocessing didn't work nicely with this...
     """
 
+    # Locate the .boto file
+    if os.path.exists(".boto"):
+        botoloc = ".boto"
+    elif os.path.exists(os.path.expanduser("~/.boto")):
+        botoloc = os.path.expanduser("~/.boto")
+    else:
+        print "Could not locate .boto file"
+        exit(1)
+
     if verbose:
         print "Copying keys, etc. to all instances, running INSTALL... "
 
@@ -128,6 +137,7 @@ def setup_instances(tags, cmds, codepath, verbose=True):
         f.put("update_tags.py", "update_tags.py")
         f.put("save_results.py", "save_results.py")
         f.put("cloud_setup.py", "cloud_setup.py")
+        f.put(botoloc, ".boto")
         # Put the specified code folder
         put_all(f, codepath, "code")
 
