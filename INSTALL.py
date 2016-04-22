@@ -20,16 +20,8 @@ def main():
                 f.write("INSTALL.py exited in failure\n")
             exit(1)
 
-        if os.path.isfile("GUROBI_VERSION"):
-            with open("GUROBI_VERSION", "r") as f:
-                # Check for a version string being printed
-                m = re.match('v"\d\.\d\.\d"', f.read())
-                if m:
-                    break
-
-    # Create a file to mark that setup is complete
-    with open("READY", "w") as f:
-        f.write("READY")
+        if os.path.isfile("READY"):
+            break
 
 if __name__ == '__main__':
     main()

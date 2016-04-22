@@ -52,3 +52,7 @@ println("Done")' > progress_C_2_$1.txt 2>&1
 ### CHECK EVERYTHING IS WORKING
 julia -e 'Pkg.build("Gurobi")' > progress_D_1_$1.txt 2>&1
 julia -e 'using Gurobi; println(Gurobi.version)' > GUROBI_VERSION
+
+###############################################################################
+### READY FOR JOB
+touch READY
