@@ -1,3 +1,4 @@
+import argparse
 import csv
 import multiprocessing
 import os
@@ -363,29 +364,38 @@ def run_dispatch(job, commands, instance_types, install_file, codepath,
     print "All dispatcher tasks successfully completed."
 
 if __name__ == "__main__":
-    create = not ("nocreate" in sys.argv)
-    dispatch = not ("nodispatch" in sys.argv)
-    verbose = "verbose" in sys.argv
+    parser = argparse.ArgumentParser(
+        description="A helper script to dispatch computation to AWS. "
+                    "Please see the README for usage instructions."
+    )
+    parser.add_argument("jobname", type=str,
+                        help="A descriptive name for this job.")
+    parser.add_argument("jobfile", type=str,
+                        help="Path to the CSV file containing job info.")
+    parser.add_argument("install_script", type=str,
+                        help="Path to the INSTALL.sh file for setting up "
+                             "machines.")
+    parser.add_argument("code_folder", type=str,
+                        help="Path to the folder containing main code to run.")
+    parser.add_argument("results_file", type=str,
+                        help="Path to the results CSV file created by the job. "
+                             "This path should be relative to `code_folder`.")
+    parser.add_argument("-c", "--create", action="store_true",
+                        help="Whether to create AWS instances for the jobs.")
+    parser.add_argument("-d", "--dispatch", action="store_true",
+                        help="Whether to dispatch the jobs to AWS instances.")
+    parser.add_argument("-v", "--verbose", action="store_true",
+                        help="Output extra progress messages (recommended).")
+    args = parser.parse_args()
 
-    if not create:
-        sys.argv.remove("nocreate")
-    if not dispatch:
-        sys.argv.remove("nodispatch")
-    if verbose:
-        sys.argv.remove("verbose")
-
-    if len(sys.argv) != 6:
-        print "Usage: python dispatcher.py jobname jobfile "
-        print "/path/to/install/script /path/to/code ",
-        print "path/to/results/file "
-        print "[nocreate] [nodispatch] [verbose]"
-        exit(1)
-
-    jobname = sys.argv[1]
-    jobfile = sys.argv[2]
-    install_file = sys.argv[3]
-    codepath = sys.argv[4]
-    results_file = sys.argv[5]
+    jobname = args.jobname
+    jobfile = args.jobfile
+    install_file = args.install_script
+    codepath = args.code_folder
+    results_file = args.results_file
+    create = args.create
+    dispatch = args.dispatch
+    verbose = args.verbose
 
     commands, instance_types = extract_job_details(jobfile)
 
