@@ -106,7 +106,7 @@ def connect_instances(job, tags, verbose=True):
     return insts, cmds
 
 
-def setup_instances(tags, cmds, codepath, verbose=True):
+def setup_instances(tags, cmds, insts, install_file, codepath, verbose=True):
     """
     Install dependencies and build so it is ready for the run. This takes
     a while so after copying the files we just fire off a script.
@@ -130,7 +130,7 @@ def setup_instances(tags, cmds, codepath, verbose=True):
         f = cmds[tag].open_sftp()
 
         # The install script
-        f.put("INSTALL.sh", "INSTALL.sh")
+        f.put(install_file, "INSTALL.sh")
         # Python script to run INSTALL.sh
         f.put("INSTALL.py", "INSTALL.py")
         # For updating tags and results
@@ -274,8 +274,8 @@ def extract_job_details(jobfile):
     return commands, instance_types
 
 
-def run_dispatch(job, commands, instance_types, codepath, results_file, create,
-                 dispatch, verbose):
+def run_dispatch(job, commands, instance_types, install_file, codepath,
+                 results_file, create, dispatch, verbose):
     """
     Setup machines, run jobs, monitor, then tear them down again.
     """
@@ -295,9 +295,16 @@ def run_dispatch(job, commands, instance_types, codepath, results_file, create,
         print "Please create a GUROBI_CLOUD_KEY file containing your AWS",
         print "Gurobi prepaid license in the config folder."
         exit(1)
-    if (not os.path.exists("INSTALL.sh") or
-            not os.path.exists("INSTALL.py")):
+    if (not os.path.exists("INSTALL.py")):
         print "Please run this script from the aws-runner directory."
+        exit(1)
+    if (not os.path.exists(install_file)):
+        print "Could not find the install file:"
+        print "    %s" % install_file
+        exit(1)
+    if (not os.path.exists(codepath)):
+        print "Could not find the code folder:"
+        print "    %s" % codepath
         exit(1)
 
     tags = ["%s%d" % (job, i) for i in range(len(commands))]
@@ -346,7 +353,7 @@ def run_dispatch(job, commands, instance_types, codepath, results_file, create,
 
     # Set them up (if desired)
     if create:
-        setup_instances(tags, cmds, codepath, verbose)
+        setup_instances(tags, cmds, insts, install_file, codepath, verbose)
 
     # Send out jobs and start machines working (if desired)
     if dispatch:
@@ -360,17 +367,27 @@ if __name__ == "__main__":
     dispatch = not ("nodispatch" in sys.argv)
     verbose = "verbose" in sys.argv
 
-    if len(sys.argv) != 5:
-        print "Usage: python dispatcher.py jobname jobfile /path/to/code ",
-        print "path/to/results/file [nocreate] [nodispatch] [verbose]"
+    if not create:
+        sys.argv.remove("nocreate")
+    if not dispatch:
+        sys.argv.remove("nodispatch")
+    if verbose:
+        sys.argv.remove("verbose")
+
+    if len(sys.argv) != 6:
+        print "Usage: python dispatcher.py jobname jobfile "
+        print "/path/to/install/script /path/to/code ",
+        print "path/to/results/file "
+        print "[nocreate] [nodispatch] [verbose]"
         exit(1)
 
     jobname = sys.argv[1]
     jobfile = sys.argv[2]
-    codepath = sys.argv[3]
-    results_file = sys.argv[4]
+    install_file = sys.argv[3]
+    codepath = sys.argv[4]
+    results_file = sys.argv[5]
 
     commands, instance_types = extract_job_details(jobfile)
 
-    run_dispatch(jobname, commands, instance_types, codepath, results_file,
-                 create, dispatch, verbose)
+    run_dispatch(jobname, commands, instance_types, install_file,
+                 codepath, results_file, create, dispatch, verbose)
