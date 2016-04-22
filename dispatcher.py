@@ -177,18 +177,27 @@ def put_all(f, localpath, remotepath):
     """
     Recursively uploads a full directory over an SFTP session.
     """
+
     cwd = os.getcwd()
+
+    localpath = os.path.abspath(localpath)
+    print "    Copying code folder to machine:"
+    print "        " + localpath
 
     os.chdir(os.path.split(localpath)[0])
     parent = os.path.split(localpath)[1]
     for walker in os.walk(parent):
+        print "        Copying " + walker[0]
+        remotename = walker[0][len(parent):]
         try:
-            f.mkdir(os.path.join(remotepath, walker[0]))
+            f.mkdir(os.path.join(remotepath, remotename))
         except:
             pass
         for file in walker[2]:
+            print "            " + os.path.join(walker[0], file),
+            print "> " + os.path.join(remotepath, remotename, file)
             f.put(os.path.join(walker[0], file),
-                  os.path.join(remotepath, walker[0], file))
+                  os.path.join(remotepath, remotename, file))
 
     os.chdir(cwd)
 
