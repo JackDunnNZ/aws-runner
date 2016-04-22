@@ -8,6 +8,9 @@
 # Exit on any error, INSTALL.py will retry again later
 set -e
 
+# Add location of gurobi for packages that need it
+export GUROBI_HOME="/opt/gurobi651/linux64"
+
 ###############################################################################
 ### APT--GET-CONFIG
 
