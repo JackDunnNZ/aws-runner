@@ -219,9 +219,11 @@ def dispatch_and_run(job, tags, cmds, commands, results_file, verbose=True):
         with open(runner_path, "w") as f:
             f.write("export TAG=%s" % tag)  # Inject tag as environment var
             f.write("\n")
+            f.write("cd code")
+            f.write("\n")
             f.write(command)
             f.write("\n")
-            f.write("python save_results.py %s %s %s" %
+            f.write("python ~/save_results.py %s %s %s" %
                     (job, tag, results_file))
 
         # Put runner to server
@@ -238,7 +240,7 @@ def dispatch_and_run(job, tags, cmds, commands, results_file, verbose=True):
         cmds[tag].run("chmod +x runner.sh")
 
         cmds[tag]._ssh_client.exec_command(
-            "cd code; nohup bash runner.sh &> screen_output.txt &"
+            "nohup bash runner.sh &> screen_output.txt &"
         )
 
     if verbose:
