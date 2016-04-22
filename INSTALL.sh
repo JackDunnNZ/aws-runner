@@ -5,6 +5,9 @@
 # Args:
 # $1: iteration number
 
+# Exit on any error, INSTALL.py will retry again later
+set -e
+
 ###############################################################################
 ### APT--GET-CONFIG
 
