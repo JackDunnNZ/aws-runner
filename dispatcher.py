@@ -143,6 +143,14 @@ def setup_instances(tags, cmds, codepath, verbose=True):
 
         f.close()
 
+        # Setting CLOUDKEY by user data doesn't seem to work
+        # Set it by curl instead
+        inst_id = insts[tag].id
+        cloudkey = gurobi_aws.get_cloudkey()
+        cmds[tag].run(
+            "curl --data \"type=CLOUDKEY&adminpassword=%s&data=%s\" "
+            "http://localhost/update_settings" % (inst_id, cloudkey))
+
         # Make script executable
         cmds[tag].run("chmod +x INSTALL.sh")
 
