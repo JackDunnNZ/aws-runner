@@ -107,7 +107,8 @@ def connect_instances(job, tags, verbose=True):
     return insts, cmds
 
 
-def setup_instances(tags, cmds, insts, install_file, codepath, verbose=True):
+def setup_instances(tags, cmds, insts, install_file, localpaths, remotepaths,
+                    verbose=True):
     """
     Install dependencies and build so it is ready for the run. This takes
     a while so after copying the files we just fire off a script.
@@ -140,7 +141,8 @@ def setup_instances(tags, cmds, insts, install_file, codepath, verbose=True):
         f.put("cloud_setup.py", "cloud_setup.py")
         f.put(botoloc, ".boto")
         # Put the specified code folder
-        put_all(f, codepath, "code")
+        for localpath, remotepath in zip(localpaths, remotepaths):
+            put_all(f, localpath, remotepath)
 
         f.close()
 
@@ -185,11 +187,18 @@ def put_all(f, localpath, remotepath):
     print "    Copying code folder to machine:"
     print "        " + localpath
 
+    # First make the containing folder on the remote
+    print "    Making remote folder: %s" % remotepath
+    mkdir_p(f, remotepath)
+
     os.chdir(os.path.split(localpath)[0])
     parent = os.path.split(localpath)[1]
     for walker in os.walk(parent):
+        remotename = walker[0][len(parent) + 1:]
+        # Skip git objects folder for speed
+        if remotename[:12] == ".git/objects":
+            continue
         print "        Copying " + walker[0]
-        remotename = walker[0][len(parent):]
         try:
             f.mkdir(os.path.join(remotepath, remotename))
         except:
@@ -201,6 +210,33 @@ def put_all(f, localpath, remotepath):
                   os.path.join(remotepath, remotename, file))
 
     os.chdir(cwd)
+
+
+def mkdir_p(sftp, remote, is_dir=True):
+    """
+    emulates mkdir_p if required.
+    sftp - is a valid sftp object
+    remote - remote path to create.
+    """
+    dirs_ = []
+    if is_dir:
+        dir_ = remote
+    else:
+        dir_, basename = os.path.split(remote)
+    while len(dir_) > 1:
+        dirs_.append(dir_)
+        dir_, _  = os.path.split(dir_)
+
+    if len(dir_) == 1 and not dir_.startswith("/"):
+        dirs_.append(dir_) # For a remote path like y/x.txt
+
+    while len(dirs_):
+        dir_ = dirs_.pop()
+        try:
+            sftp.stat(dir_)
+        except:
+            print "making ... dir",  dir_
+            sftp.mkdir(dir_)
 
 
 def dispatch_and_run(job, tags, cmds, commands, results_file, verbose=True):
@@ -276,7 +312,7 @@ def extract_job_details(jobfile):
 
 
 def run_dispatch(job, commands, instance_types, install_file, codepath,
-                 results_file, create, dispatch, verbose):
+                 extra_code_paths, results_file, create, dispatch, verbose):
     """
     Setup machines, run jobs, monitor, then tear them down again.
     """
@@ -307,6 +343,32 @@ def run_dispatch(job, commands, instance_types, install_file, codepath,
         print "Could not find the code folder:"
         print "    %s" % codepath
         exit(1)
+
+    # Load and validate extra code paths
+    localpaths = [codepath]
+    remotepaths = ["code"]
+    for extra_code_path in extra_code_paths:
+        split_path = extra_code_path.split("=")
+        if len(split_path) != 2:
+            print "The following extra code path was malformed. It needs to",
+            print "be in the form /local/path=/remotepath"
+            print "    %s" % extra_code_path
+            exit(1)
+        localpath = split_path[0]
+        remotepath = split_path[1]
+        if not os.path.exists(localpath):
+            print "Could not find the local part of the extra code path:"
+            print "    %s" % localpath
+            print "The extra code path was:"
+            print "    %s" % extra_code_path
+            exit(1)
+        localpaths.append(localpath)
+        remotepaths.append(remotepath)
+
+    if verbose:
+        print "Code folders to copy (local => remote):"
+        for localpath, remotepath in zip(localpaths, remotepaths):
+            print "    %s => %s" % (localpath, remotepath)
 
     tags = ["%s%d" % (job, i) for i in range(len(commands))]
 
@@ -344,9 +406,9 @@ def run_dispatch(job, commands, instance_types, install_file, codepath,
     cloud_setup.wait_for_shutdown()
 
     # Create instances if desired
-    if create:
-        create_instances(job, tags, ami_name, user_data, instance_types,
-                         verbose)
+    # if create:
+    #     create_instances(job, tags, ami_name, user_data, instance_types,
+    #                      verbose)
 
     # Connect to all the instances
     if create or dispatch:
@@ -354,7 +416,8 @@ def run_dispatch(job, commands, instance_types, install_file, codepath,
 
     # Set them up (if desired)
     if create:
-        setup_instances(tags, cmds, insts, install_file, codepath, verbose)
+        setup_instances(tags, cmds, insts, install_file, localpaths,
+                        remotepaths, verbose)
 
     # Send out jobs and start machines working (if desired)
     if dispatch:
@@ -386,6 +449,11 @@ if __name__ == "__main__":
                         help="Whether to dispatch the jobs to AWS instances.")
     parser.add_argument("-v", "--verbose", action="store_true",
                         help="Output extra progress messages (recommended).")
+    parser.add_argument("-e", "--extra_code_path", action="append", type=str,
+                        help="Additional folders to copy to the machine. You "
+                             "must specify the local path to the folder and "
+                             "the path to place it on the remote machine as "
+                             "`--extra_code_path /local/path=/remote/path`")
     args = parser.parse_args()
 
     jobname = args.jobname
@@ -396,8 +464,10 @@ if __name__ == "__main__":
     create = args.create
     dispatch = args.dispatch
     verbose = args.verbose
+    extra_code_paths = args.extra_code_path
 
     commands, instance_types = extract_job_details(jobfile)
 
     run_dispatch(jobname, commands, instance_types, install_file,
-                 codepath, results_file, create, dispatch, verbose)
+                 codepath, extra_code_paths, results_file, create, dispatch,
+                 verbose)
