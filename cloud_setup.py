@@ -211,7 +211,7 @@ def setup_s3_bucket(bucket_name):
         bucket = s3.get_bucket(bucket_name, validate=True)
     except:
         # Doesn't exist yet
-        bucket = s3.create_domain(bucket_name)
+        bucket = s3.create_bucket(bucket_name)
     return s3, bucket
 
 
