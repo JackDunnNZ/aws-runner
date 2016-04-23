@@ -312,7 +312,8 @@ def extract_job_details(jobfile):
 
 
 def run_dispatch(job, commands, instance_types, install_file, codepath,
-                 extra_code_paths, results_file, create, dispatch, verbose):
+                 extra_code_paths, results_file, create, dispatch, verbose,
+                 tag_offset):
     """
     Setup machines, run jobs, monitor, then tear them down again.
     """
@@ -370,7 +371,7 @@ def run_dispatch(job, commands, instance_types, install_file, codepath,
         for localpath, remotepath in zip(localpaths, remotepaths):
             print "    %s => %s" % (localpath, remotepath)
 
-    tags = ["%s%d" % (job, i) for i in range(len(commands))]
+    tags = ["%s%d" % (job, i + tag_offset) for i in range(len(commands))]
 
     print "Overview for job %s" % job
     for tag, inst_type, command in zip(tags, instance_types, commands):
@@ -406,9 +407,9 @@ def run_dispatch(job, commands, instance_types, install_file, codepath,
     cloud_setup.wait_for_shutdown()
 
     # Create instances if desired
-    # if create:
-    #     create_instances(job, tags, ami_name, user_data, instance_types,
-    #                      verbose)
+    if create:
+        create_instances(job, tags, ami_name, user_data, instance_types,
+                         verbose)
 
     # Connect to all the instances
     if create or dispatch:
@@ -454,6 +455,13 @@ if __name__ == "__main__":
                              "must specify the local path to the folder and "
                              "the path to place it on the remote machine as "
                              "`--extra_code_path /local/path=/remote/path`")
+    parser.add_argument("--tag_offset", type=int, default=0,
+                        help="Where to start numbering the machines from. "
+                             "Use when you already have machines running for "
+                             "this job and want to add more. You should set "
+                             "this to a number that is greater than the tag "
+                             "number of all currently running machines. "
+                             "Defaults to 0.")
     args = parser.parse_args()
 
     jobname = args.jobname
@@ -464,10 +472,11 @@ if __name__ == "__main__":
     create = args.create
     dispatch = args.dispatch
     verbose = args.verbose
-    extra_code_paths = args.extra_code_path
+    extra_code_paths = args.extra_code_path if args.extra_code_path else []
+    tag_offset = args.tag_offset
 
     commands, instance_types = extract_job_details(jobfile)
 
     run_dispatch(jobname, commands, instance_types, install_file,
                  codepath, extra_code_paths, results_file, create, dispatch,
-                 verbose)
+                 verbose, tag_offset)
