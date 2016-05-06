@@ -239,7 +239,8 @@ def mkdir_p(sftp, remote, is_dir=True):
             sftp.mkdir(dir_)
 
 
-def dispatch_and_run(job, tags, cmds, commands, results_file, verbose=True):
+def dispatch_and_run(job, tags, cmds, commands, results_file,
+                     extra_output_files, verbose=True):
     """
     Spawn the relevant command on each instance
     """
@@ -262,6 +263,8 @@ def dispatch_and_run(job, tags, cmds, commands, results_file, verbose=True):
             f.write("\n")
             f.write("python ~/save_results.py %s %s %s" %
                     (job, tag, results_file))
+            for extra_output_file in extra_output_files:
+                f.write(" %s" % extra_output_file)
 
         # Put runner to server
         f = cmds[tag].open_sftp()
@@ -312,8 +315,8 @@ def extract_job_details(jobfile):
 
 
 def run_dispatch(job, commands, instance_types, install_file, codepath,
-                 extra_code_paths, results_file, create, dispatch, verbose,
-                 tag_offset):
+                 extra_code_paths, results_file, extra_output_files, create,
+                 dispatch, verbose, tag_offset):
     """
     Setup machines, run jobs, monitor, then tear them down again.
     """
@@ -422,7 +425,8 @@ def run_dispatch(job, commands, instance_types, install_file, codepath,
 
     # Send out jobs and start machines working (if desired)
     if dispatch:
-        dispatch_and_run(job, tags, cmds, commands, results_file, verbose)
+        dispatch_and_run(job, tags, cmds, commands, results_file,
+                         extra_output_files, verbose)
 
     print ""
     print "All dispatcher tasks successfully completed."
@@ -450,11 +454,15 @@ if __name__ == "__main__":
                         help="Whether to dispatch the jobs to AWS instances.")
     parser.add_argument("-v", "--verbose", action="store_true",
                         help="Output extra progress messages (recommended).")
-    parser.add_argument("-e", "--extra_code_path", action="append", type=str,
+    parser.add_argument("-i", "--extra_input_code_path", action="append",
+                        type=str,
                         help="Additional folders to copy to the machine. You "
                              "must specify the local path to the folder and "
                              "the path to place it on the remote machine as "
                              "`--extra_code_path /local/path=/remote/path`")
+    parser.add_argument("-o", "--extra_output_file", action="append", type=str,
+                        help="Additional output files to upload to S3. "
+                             "These paths should be relative to `code_folder`.")
     parser.add_argument("--tag_offset", type=int, default=0,
                         help="Where to start numbering the machines from. "
                              "Use when you already have machines running for "
@@ -472,11 +480,14 @@ if __name__ == "__main__":
     create = args.create
     dispatch = args.dispatch
     verbose = args.verbose
-    extra_code_paths = args.extra_code_path if args.extra_code_path else []
+    extra_code_paths = (args.extra_input_code_path if args.extra_input_code_path
+                        else [])
+    extra_output_files = (args.extra_output_file if args.extra_output_file
+                          else [])
     tag_offset = args.tag_offset
 
     commands, instance_types = extract_job_details(jobfile)
 
     run_dispatch(jobname, commands, instance_types, install_file,
-                 codepath, extra_code_paths, results_file, create, dispatch,
-                 verbose, tag_offset)
+                 codepath, extra_code_paths, results_file, extra_output_files,
+                 create, dispatch, verbose, tag_offset)

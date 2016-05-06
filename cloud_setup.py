@@ -223,7 +223,7 @@ def delete_s3_bucket(bucket_name):
 
 def add_file_to_s3_bucket(bucket, filekey, filename):
     key = boto.s3.key.Key(bucket)
-    key.key = filekey
+    key.key = filename + "-" + filekey
     key.set_contents_from_filename(filename)
 
 
