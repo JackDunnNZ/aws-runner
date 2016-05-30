@@ -46,9 +46,11 @@ def save_results(job, tag, results_file, extra_output_files):
 
         # Write to SDB
         dom.batch_put_attributes(results)
-    finally:
+
         # Self-terminate at completion
         cloud_setup.terminate_instance(tag)
+    except:
+        cloud_setup.add_tag(tag, "dataset", "finished")
 
 if __name__ == "__main__":
     # Validate command-line arguments
