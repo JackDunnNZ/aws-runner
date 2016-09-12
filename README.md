@@ -1,6 +1,6 @@
 # Computation with Amazon Web Services
 
-This is a collection of scripts to help you easily perform distributed computation using Gurobi on Amazon Web Services (AWS).
+This is a collection of scripts to help you easily perform distributed computation using Gurobi on Amazon Web Services (AWS). These were adapted from code originally by [Iain Dunning](https://github.com/IainNZ).
 
 ## Setting up required software
 
