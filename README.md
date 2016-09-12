@@ -50,8 +50,7 @@ The following is an overview of how the computation will be carried out when usi
 - The work you want to do can be broken into smaller, parallelizable jobs.
 - An AWS machine will be created for each job, and will carry out the computation for this job independently of all other jobs.
 - Each job will be started by a single command-line string.
-- Each job produces a single CSV file that contains all output relevant to that job.
-- These CSV files will be aggregated once all jobs are finished and returned to you as a single CSV file containing the results from all of the jobs.
+- Each job produces one or more output files that describe all the information you require.
 
 You need to decide how to break up your computation into jobs, and make sure that each job can be run from a single command-line string. Packages like [ArgParse.jl](https://github.com/carlobaldassi/ArgParse.jl) can be helpful in writing a command-line wrapper for your code.
 
@@ -90,44 +89,50 @@ This file is included as an example in the `config` directory.
 
 When the AWS instance starts, it will be a fresh installation of Ubuntu with no additional software other than Gurobi. You will need to install any additional software that your code requires, for example Julia or R.
 
-The file `INSTALL.sh` is run after creating the machine to do this installation. The example file installs Julia and R, as well as some packages for these languages. You should modify this file to match the installation you require.
+A shell script is run after is run after creating the machine to do this installation. The example `INSTALL.sh` file installs Julia and R, as well as some packages for these languages. You can modify this file to match the installation you require or create your own script. It must create a file `READY` in the home directory when it has successfully executed..
 
 ## Launching Computation on EC2
 
 The file `dispatcher.py` is used to start the computation job. This script should be run with the following arguments:
 
 ```
-python dispatcher.py jobname jobfile /path/to/code 
-                     path/to/results/file [nocreate] [nodispatch] [verbose]
+$ python dispatcher.py -h
+usage: dispatcher.py [-h] [-c] [-d] [-v] [-i EXTRA_INPUT_CODE_PATH]
+                     [-o EXTRA_OUTPUT_FILE] [--tag_offset TAG_OFFSET]
+                     jobname jobfile install_script code_folder results_file
 ```
 
 Arguments:
 
 1. `jobname` is the name given to this job for identification purposes.
 2. `jobfile` should be the path to the `jobdetails.csv` file you created earlier with the instance types and commands for each job.
-3. `/path/to/code` should be the path of the folder that contains all of the code needed for running your jobs. This folder will be copied to each instance during the setup process.
-4. `path/to/results/file` should be the path to the CSV file that will be created after your job has run. This path must be **relative** to the code folder. For example, if your code is in `/code/`, and your script outputs its results file to `/code/results/results.csv`, you should specify `results/results.csv` as the results file.
-5. `nocreate` is an optional argument which, if present, will skip creating the machines and just start the computation. It should only be used if the machines are already created and set up.
-6. `nodispatch` is an optional argument which, if present, will skip dispatching the computation and just set up the machines.
-7. `verbose` is an optional argument which, if present, will make the script display information as it runs.
+3. `install_script` is the path to the `INSTALL.sh` script.
+4. `code_folder` should be the path of the folder that contains all of the code needed for running your jobs. This folder will be copied to each instance during the setup process.
+5. `results_file` should be the path to the CSV file that will be created after your job has run. This path must be **relative** to the code folder. For example, if your code is in `/code/`, and your script outputs its results file to `/code/results/results.csv`, you should specify `results/results.csv` as the results file.
+6. `-c, --create` is an optional argument which will create the machines and run the installation script. It should only be omitted if the machines are already created and set up.
+7. `-d, --dispatch` is an optional argument which will start the computation on the machines once they are setup..
+8. `-v, --verbose` is an optional argument which will make the script display information as it runs.
+9. `-i, --extra_input_code_path` allows you to specify additional folders to copy to the machines. You must specify the local path to the folder and the path to place it on the remote machine as `--extra_input_code_path /local/path=/remote/path`
+10. `-o, --extra_output_file` allows you to specify additional results files to upload to S3. These paths should again be relative to `code_folder`.
+11. `--tag_offset` allows you to specify the starting point for numbering machines. The script uses these numbers to refer to the machines uniquely, and defaults to starting at zero. If you already have machines running, you should set this to a number that is greater than the tag number of all currently running machines.
 
 For the example computation described earlier, a call to `dispatcher.py` might look like
 
 ```
-python dispatcher.py myexamplejob config/jobdetails.csv /code/ results/results.csv verbose
+python dispatcher.py myexamplejob config/jobdetails.csv /code/ results/results.csv --create --dispatch --verbose
 ```
 
 This will produce output as the dispatcher launches new instances, connects to the instances, sets up the instances for the run, distributes the work for the run, and starts the run on each node. Once the launch script exits, all nodes will be running, and they will terminate automatically once they have completed all their assigned work. See the "Monitoring Cloud Runs" section below for details on how to monitor a run that is in progress.
 
 ## Downloading results
 
-Once the run is completed, its full output is stored in a SimpleDB (NoSQL database) on Amazon Web Services (which has the job name as it's domain name). To download these results to `results.csv` you can run the following:
+Once the run is completed, the output files are saved in S3 on Amazon Web Services (which has the job name as the S3 bucket name). To download these results to `results.csv` you can run the following:
 
 ```
-python get_results.py jobname results.csv
+python get_s3_files.py jobname output_folder
 ```
 
-where `jobname` is the job name that you specified earlier.
+where `jobname` is the job name that you specified earlier and `output_folder` is the place to put the files.
 
 ## Monitoring and Debugging Cloud Runs
 
