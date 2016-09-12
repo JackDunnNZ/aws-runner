@@ -38,14 +38,14 @@ def save_results(job, tag, results_file, extra_output_files):
         for extra_output_file in extra_output_files:
             cloud_setup.add_file_to_s3_bucket(bucket, key, extra_output_file)
 
-        # Get ready for SimpleDB comms
-        sdb, dom = cloud_setup.setup_sdb_domain(job)
+        # # Get ready for SimpleDB comms
+        # sdb, dom = cloud_setup.setup_sdb_domain(job)
 
-        results = get_results_from_csv(key, job, tag, results_file,
-                                       current_time)
+        # results = get_results_from_csv(key, job, tag, results_file,
+        #                                current_time)
 
-        # Write to SDB
-        dom.batch_put_attributes(results)
+        # # Write to SDB
+        # dom.batch_put_attributes(results)
 
         # Self-terminate at completion
         cloud_setup.terminate_instance(tag)
